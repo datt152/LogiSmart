@@ -9,15 +9,19 @@ import logismart.dto.request.LoginRequest;
 import logismart.dto.request.RegisterRequest;
 import logismart.dto.response.AuthResponse;
 import logismart.dto.response.ErrorResponse;
+import logismart.dto.response.UserResponse;
+import logismart.entity.User;
+import logismart.repository.UserRepository;
 import logismart.service.AuthService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -25,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserRepository userRepository;
 
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
@@ -33,5 +38,19 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> register(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal UserDetails currentUser) {
+        if(currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return userRepository.findByUsername(currentUser.getUsername()).map(user -> {
+           UserResponse userResponse  = UserResponse.builder()
+                    .username(user.getUsername())
+                    .fullName(user.getFullName())
+                    .role(user.getRole())
+                    .build();
+            return ResponseEntity.ok(userResponse);
+        }).orElse(ResponseEntity.status(404).build());
     }
 }
